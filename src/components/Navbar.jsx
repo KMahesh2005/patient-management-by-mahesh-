@@ -58,7 +58,7 @@ const Navbar = () => {
     <nav className="navbar">
       <div className="navbar-left">
         <div className="navbar-brand">
-          <Link to="/dashboard">Hospital Management</Link>
+          <Link to="/dashboard">Patient Management</Link>
         </div>
         <div className="navbar-links">
           <Link to="/dashboard">Dashboard</Link>
