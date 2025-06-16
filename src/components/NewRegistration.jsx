@@ -40,33 +40,52 @@ const NewRegistration = () => {
   const [showPatientList, setShowPatientList] = useState(false);
   const [actionType, setActionType] = useState(null);
 
-  // Function to generate the next outpatient number
-  const generateOutpatientNo = async () => {
+  // Function to generate both outpatient and registration numbers
+  const generateRegistrationNumbers = async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'patients'));
       const patientsData = querySnapshot.docs.map(doc => doc.data());
       
+      // Generate outpatient number
       const outpatientNumbers = patientsData
         .map(patient => patient.outpatientNo)
         .filter(no => no && no.match(/^\d+$/))
         .map(Number);
       
-      const highestNumber = outpatientNumbers.length > 0 
+      const highestOutpatientNo = outpatientNumbers.length > 0 
         ? Math.max(...outpatientNumbers) 
         : 0;
       
-      return (highestNumber + 1).toString().padStart(6, '0');
+      const newOutpatientNo = (highestOutpatientNo + 1).toString().padStart(6, '0');
+      
+      // Generate registration number with format REG000001
+      const regNumbers = patientsData
+        .map(patient => patient.regNo)
+        .filter(no => no && no.match(/^REG\d+$/))
+        .map(no => parseInt(no.replace('REG', '')));
+      
+      const highestRegNo = regNumbers.length > 0 
+        ? Math.max(...regNumbers) 
+        : 0;
+      
+      const newRegNo = `REG${(highestRegNo + 1).toString().padStart(6, '0')}`;
+      
+      return { newOutpatientNo, newRegNo };
     } catch (err) {
-      console.error('Error generating outpatient number:', err);
-      return '';
+      console.error('Error generating numbers:', err);
+      return { newOutpatientNo: '', newRegNo: '' };
     }
   };
 
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const newOutpatientNo = await generateOutpatientNo();
-        setFormData(prev => ({ ...prev, outpatientNo: newOutpatientNo }));
+        const { newOutpatientNo, newRegNo } = await generateRegistrationNumbers();
+        setFormData(prev => ({ 
+          ...prev, 
+          outpatientNo: newOutpatientNo,
+          regNo: newRegNo
+        }));
 
         const querySnapshot = await getDocs(collection(db, 'patients'));
         const patientsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -164,9 +183,13 @@ const NewRegistration = () => {
       // Reset the form after successful submission
       await handleReset();
       
-      // Generate new outpatient number after reset
-      const newOutpatientNo = await generateOutpatientNo();
-      setFormData(prev => ({ ...prev, outpatientNo: newOutpatientNo }));
+      // Generate new numbers after reset
+      const { newOutpatientNo, newRegNo } = await generateRegistrationNumbers();
+      setFormData(prev => ({ 
+        ...prev, 
+        outpatientNo: newOutpatientNo,
+        regNo: newRegNo
+      }));
       
       setIsEditing(false);
       setEditingPatientId(null);
@@ -178,11 +201,11 @@ const NewRegistration = () => {
   };
 
   const handleReset = async () => {
-    const newOutpatientNo = await generateOutpatientNo();
+    const { newOutpatientNo, newRegNo } = await generateRegistrationNumbers();
     
     setFormData({
       outpatientNo: newOutpatientNo,
-      regNo: '',
+      regNo: newRegNo,
       admitDate: new Date().toISOString().split('T')[0],
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       patientName: '',
@@ -320,7 +343,14 @@ const NewRegistration = () => {
                 </div>
                 <div className="form-group">
                   <label>Registration No:</label>
-                  <input type="text" name="regNo" value={formData.regNo} onChange={handleChange} required />
+                  <input 
+                    type="text" 
+                    name="regNo" 
+                    value={formData.regNo} 
+                    onChange={handleChange} 
+                    required 
+                    readOnly 
+                  />
                 </div>
               </div>
               
@@ -600,7 +630,7 @@ const NewRegistration = () => {
                   onClick={() => handleSelectPatient(patient)} 
                   className="patient-item"
                 >
-                  {patient.patientName} (Outpatient No: {patient.outpatientNo})
+                  {patient.patientName} (Outpatient No: {patient.outpatientNo}, Reg No: {patient.regNo})
                 </li>
               ))}
             </ul>
