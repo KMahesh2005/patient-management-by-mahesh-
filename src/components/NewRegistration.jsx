@@ -46,31 +46,28 @@ const NewRegistration = () => {
       const querySnapshot = await getDocs(collection(db, 'patients'));
       const patientsData = querySnapshot.docs.map(doc => doc.data());
       
-      // Extract all outpatient numbers and find the highest one
       const outpatientNumbers = patientsData
         .map(patient => patient.outpatientNo)
-        .filter(no => no && no.match(/^\d+$/)) // Filter only numeric values
+        .filter(no => no && no.match(/^\d+$/))
         .map(Number);
       
       const highestNumber = outpatientNumbers.length > 0 
         ? Math.max(...outpatientNumbers) 
         : 0;
       
-      return (highestNumber + 1).toString().padStart(6, '0'); // Format as 6-digit number
+      return (highestNumber + 1).toString().padStart(6, '0');
     } catch (err) {
       console.error('Error generating outpatient number:', err);
-      return ''; // Fallback if there's an error
+      return '';
     }
   };
 
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        // Generate initial outpatient number
         const newOutpatientNo = await generateOutpatientNo();
         setFormData(prev => ({ ...prev, outpatientNo: newOutpatientNo }));
 
-        // Fetch existing patients
         const querySnapshot = await getDocs(collection(db, 'patients'));
         const patientsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setPatients(patientsData);
@@ -95,7 +92,7 @@ const NewRegistration = () => {
         return;
       }
 
-      const maxSize = 10 * 1024 * 1024; // 10MB
+      const maxSize = 10 * 1024 * 1024;
       if (file.size > maxSize) {
         setError('File size exceeds 10MB limit.');
         return;
@@ -118,7 +115,6 @@ const NewRegistration = () => {
     setError(null);
 
     try {
-      // Hardcode Cloudinary configuration directly in the code
       const cloudName = 'dckdkpq7d';
       const uploadPreset = 'ml_default';
 
@@ -131,7 +127,6 @@ const NewRegistration = () => {
         formDataToSend.append('upload_preset', uploadPreset);
         formDataToSend.append('folder', `patient-media/${formData.outpatientNo}`);
 
-        console.log('Uploading to Cloudinary:', formData.mediaFile.name);
         const response = await fetch(
           `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
           {
@@ -145,7 +140,6 @@ const NewRegistration = () => {
         }
         mediaUrl = result.secure_url;
         mediaPublicId = result.public_id;
-        console.log('Cloudinary upload successful:', { mediaUrl, mediaPublicId });
       }
 
       const patientData = {
@@ -160,14 +154,17 @@ const NewRegistration = () => {
         const patientRef = doc(db, 'patients', editingPatientId);
         await updateDoc(patientRef, patientData);
         setPatients(prev => prev.map(p => (p.id === editingPatientId ? { id: editingPatientId, ...patientData } : p)));
-        console.log('Patient updated with ID:', editingPatientId);
+        alert('Patient information updated successfully!');
       } else {
         const docRef = await addDoc(collection(db, 'patients'), patientData);
         setPatients(prev => [...prev, { id: docRef.id, ...patientData }]);
-        console.log('Patient added with ID:', docRef.id);
+        alert('Patient registration submitted successfully!');
       }
 
-      // Generate new outpatient number after submission
+      // Reset the form after successful submission
+      await handleReset();
+      
+      // Generate new outpatient number after reset
       const newOutpatientNo = await generateOutpatientNo();
       setFormData(prev => ({ ...prev, outpatientNo: newOutpatientNo }));
       
@@ -243,7 +240,7 @@ const NewRegistration = () => {
           }
           await deleteDoc(doc(db, 'patients', patient.id));
           setPatients(prev => prev.filter(p => p.id !== patient.id));
-          console.log('Patient deleted with ID:', patient.id);
+          alert('Patient deleted successfully!');
         } catch (err) {
           setError('Failed to delete patient: ' + err.message);
         }
@@ -268,24 +265,12 @@ const NewRegistration = () => {
           if (!isRestrictedMode) handleRemove();
           break;
         case 'Home':
-          if (!isRestrictedMode) {
-            // Navigate to first record
-          }
           break;
         case 'PageUp':
-          if (!isRestrictedMode) {
-            // Navigate to previous record
-          }
           break;
         case 'PageDown':
-          if (!isRestrictedMode) {
-            // Navigate to next record
-          }
           break;
         case 'End':
-          if (!isRestrictedMode) {
-            // Navigate to last record
-          }
           break;
         case 'F8':
           document.querySelector('form').requestSubmit();
