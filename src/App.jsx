@@ -5,7 +5,7 @@ import {
   Navigate,
   Outlet 
 } from "react-router-dom";
-import Login from "./components/Login";
+import Login from "./components/login";
 import Dashboard from "./components/Dashboard";
 import NewRegistration from "./components/NewRegistration";
 import OutPatientDetails from "./components/OutPatientDetails";
