@@ -17,12 +17,12 @@ const Dashboard = () => {
       <div className="dashboard-header">
         <img
           src="https://images.unsplash.com/photo-1584982751601-97dcc096659c"
-          alt="Hospital Management System"
+          alt="Patient Management System"
           className="dashboard-image"
         />
         <div className="dashboard-overlay">
           <h1>Admin Dashboard</h1>
-          <p>Welcome to the Hospital Management System</p>
+          <p>Welcome to the Patient Management System</p>
         </div>
       </div>
 
