@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './RegistrationForm.css';
 import { db, auth } from '../firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 const NewRegistration = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     outpatientNo: '',
     regNo: '',
@@ -38,17 +40,45 @@ const NewRegistration = () => {
   const [showPatientList, setShowPatientList] = useState(false);
   const [actionType, setActionType] = useState(null);
 
+  // Function to generate the next outpatient number
+  const generateOutpatientNo = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'patients'));
+      const patientsData = querySnapshot.docs.map(doc => doc.data());
+      
+      // Extract all outpatient numbers and find the highest one
+      const outpatientNumbers = patientsData
+        .map(patient => patient.outpatientNo)
+        .filter(no => no && no.match(/^\d+$/)) // Filter only numeric values
+        .map(Number);
+      
+      const highestNumber = outpatientNumbers.length > 0 
+        ? Math.max(...outpatientNumbers) 
+        : 0;
+      
+      return (highestNumber + 1).toString().padStart(6, '0'); // Format as 6-digit number
+    } catch (err) {
+      console.error('Error generating outpatient number:', err);
+      return ''; // Fallback if there's an error
+    }
+  };
+
   useEffect(() => {
-    const fetchPatients = async () => {
+    const fetchInitialData = async () => {
       try {
+        // Generate initial outpatient number
+        const newOutpatientNo = await generateOutpatientNo();
+        setFormData(prev => ({ ...prev, outpatientNo: newOutpatientNo }));
+
+        // Fetch existing patients
         const querySnapshot = await getDocs(collection(db, 'patients'));
         const patientsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setPatients(patientsData);
       } catch (err) {
-        setError('Failed to fetch patients: ' + err.message);
+        setError('Failed to fetch initial data: ' + err.message);
       }
     };
-    fetchPatients();
+    fetchInitialData();
   }, []);
 
   const handleChange = (e) => {
@@ -137,7 +167,10 @@ const NewRegistration = () => {
         console.log('Patient added with ID:', docRef.id);
       }
 
-      handleReset();
+      // Generate new outpatient number after submission
+      const newOutpatientNo = await generateOutpatientNo();
+      setFormData(prev => ({ ...prev, outpatientNo: newOutpatientNo }));
+      
       setIsEditing(false);
       setEditingPatientId(null);
       setIsRestrictedMode(true);
@@ -147,9 +180,11 @@ const NewRegistration = () => {
     }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
+    const newOutpatientNo = await generateOutpatientNo();
+    
     setFormData({
-      outpatientNo: '',
+      outpatientNo: newOutpatientNo,
       regNo: '',
       admitDate: new Date().toISOString().split('T')[0],
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -172,9 +207,10 @@ const NewRegistration = () => {
       mediaUrl: null,
       mediaPublicId: null
     });
+    
     setMediaPreview(null);
     setError(null);
-    setIsRestrictedMode(true);
+    setIsRestrictedMode(false);
     setIsEditing(false);
     setEditingPatientId(null);
   };
@@ -261,7 +297,9 @@ const NewRegistration = () => {
           handleReset();
           break;
         case 'F12':
-          window.confirm('Quit without saving?') && window.close();
+          if (window.confirm('Quit without saving?')) {
+            navigate('/dashboard');
+          }
           break;
         default:
           break;
@@ -270,7 +308,7 @@ const NewRegistration = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isRestrictedMode]);
+  }, [isRestrictedMode, navigate]);
 
   return (
     <div className="page-content">
@@ -286,7 +324,14 @@ const NewRegistration = () => {
               <div className="form-row">
                 <div className="form-group">
                   <label>Outpatient No:</label>
-                  <input type="text" name="outpatientNo" value={formData.outpatientNo} onChange={handleChange} required />
+                  <input 
+                    type="text" 
+                    name="outpatientNo" 
+                    value={formData.outpatientNo} 
+                    onChange={handleChange} 
+                    required 
+                    readOnly 
+                  />
                 </div>
                 <div className="form-group">
                   <label>Registration No:</label>
@@ -545,7 +590,7 @@ const NewRegistration = () => {
           <button 
             type="button" 
             className="action-btn quit" 
-            onClick={() => window.confirm('Quit form?') && window.close()} 
+            onClick={() => window.confirm('Quit form?') && navigate('/dashboard')} 
             title="Quit (F12)"
           >
             QUIT - F12
