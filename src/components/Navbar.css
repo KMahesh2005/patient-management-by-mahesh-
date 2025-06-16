@@ -9,6 +9,7 @@
   width: 100%;
   z-index: 1000;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box; /* Ensure padding doesn't cause overflow */
 }
 
 .navbar-left {
@@ -40,7 +41,8 @@
 }
 
 .navbar-right {
-  position: relative;
+  display: flex;
+  align-items: center; /* Ensure proper alignment */
 }
 
 .profile-dropdown {
@@ -50,6 +52,7 @@
   cursor: pointer;
   padding: 5px 10px;
   border-radius: 4px;
+  min-width: 180px; /* Ensure enough space for avatar, name, and icon */
 }
 
 .profile-dropdown:hover {
@@ -67,6 +70,10 @@
 .profile-name {
   color: white;
   font-size: 16px;
+  white-space: nowrap; /* Prevent text from wrapping */
+  overflow: hidden; /* Hide overflow text */
+  text-overflow: ellipsis; /* Show ellipsis if text overflows */
+  flex-grow: 1; /* Allow the name to take available space */
 }
 
 .dropdown-menu {
@@ -156,5 +163,13 @@
     top: 120px;
     right: 10px;
     width: 200px;
+  }
+
+  .profile-dropdown {
+    min-width: 150px; /* Slightly smaller for smaller screens */
+  }
+
+  .profile-name {
+    font-size: 14px; /* Adjust font size for smaller screens */
   }
 }
