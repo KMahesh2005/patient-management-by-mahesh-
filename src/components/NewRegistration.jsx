@@ -33,6 +33,7 @@ const NewRegistration = () => {
 
   const [mediaPreview, setMediaPreview] = useState(null);
   const [patients, setPatients] = useState([]);
+  const [filteredPatients, setFilteredPatients] = useState([]);
   const [error, setError] = useState(null);
   const [isRestrictedMode, setIsRestrictedMode] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -40,13 +41,11 @@ const NewRegistration = () => {
   const [showPatientList, setShowPatientList] = useState(false);
   const [actionType, setActionType] = useState(null);
 
-  // Function to generate both outpatient and registration numbers
   const generateRegistrationNumbers = async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'patients'));
       const patientsData = querySnapshot.docs.map(doc => doc.data());
       
-      // Generate outpatient number
       const outpatientNumbers = patientsData
         .map(patient => patient.outpatientNo)
         .filter(no => no && no.match(/^\d+$/))
@@ -58,7 +57,6 @@ const NewRegistration = () => {
       
       const newOutpatientNo = (highestOutpatientNo + 1).toString().padStart(6, '0');
       
-      // Generate registration number with format REG000001
       const regNumbers = patientsData
         .map(patient => patient.regNo)
         .filter(no => no && no.match(/^REG\d+$/))
@@ -90,6 +88,7 @@ const NewRegistration = () => {
         const querySnapshot = await getDocs(collection(db, 'patients'));
         const patientsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setPatients(patientsData);
+        setFilteredPatients(patientsData);
       } catch (err) {
         setError('Failed to fetch initial data: ' + err.message);
       }
@@ -173,17 +172,17 @@ const NewRegistration = () => {
         const patientRef = doc(db, 'patients', editingPatientId);
         await updateDoc(patientRef, patientData);
         setPatients(prev => prev.map(p => (p.id === editingPatientId ? { id: editingPatientId, ...patientData } : p)));
+        setFilteredPatients(prev => prev.map(p => (p.id === editingPatientId ? { id: editingPatientId, ...patientData } : p)));
         alert('Patient information updated successfully!');
       } else {
         const docRef = await addDoc(collection(db, 'patients'), patientData);
         setPatients(prev => [...prev, { id: docRef.id, ...patientData }]);
+        setFilteredPatients(prev => [...prev, { id: docRef.id, ...patientData }]);
         alert('Patient registration submitted successfully!');
       }
 
-      // Reset the form after successful submission
       await handleReset();
       
-      // Generate new numbers after reset
       const { newOutpatientNo, newRegNo } = await generateRegistrationNumbers();
       setFormData(prev => ({ 
         ...prev, 
@@ -263,6 +262,7 @@ const NewRegistration = () => {
           }
           await deleteDoc(doc(db, 'patients', patient.id));
           setPatients(prev => prev.filter(p => p.id !== patient.id));
+          setFilteredPatients(prev => prev.filter(p => p.id !== patient.id));
           alert('Patient deleted successfully!');
         } catch (err) {
           setError('Failed to delete patient: ' + err.message);
@@ -623,17 +623,46 @@ const NewRegistration = () => {
             >
               Close
             </button>
-            <ul>
-              {patients.map(patient => (
-                <li 
-                  key={patient.id} 
-                  onClick={() => handleSelectPatient(patient)} 
-                  className="patient-item"
-                >
-                  {patient.patientName} (Outpatient No: {patient.outpatientNo}, Reg No: {patient.regNo})
-                </li>
-              ))}
-            </ul>
+            
+            <input
+              type="text"
+              className="search-patient"
+              placeholder="Search patients by name, ID, or date..."
+              onChange={(e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                const filtered = patients.filter(patient => 
+                  patient.patientName.toLowerCase().includes(searchTerm) ||
+                  patient.outpatientNo.toLowerCase().includes(searchTerm) ||
+                  patient.regNo.toLowerCase().includes(searchTerm) ||
+                  (patient.dob && patient.dob.toLowerCase().includes(searchTerm))
+                );
+                setFilteredPatients(filtered);
+              }}
+            />
+            
+            <div className="patient-list-container">
+              {filteredPatients.length === 0 ? (
+                <div className="no-results">
+                  {patients.length === 0 ? 'No patients registered yet' : 'No matching patients found'}
+                </div>
+              ) : (
+                filteredPatients.map(patient => (
+                  <div
+                    key={patient.id} 
+                    onClick={() => handleSelectPatient(patient)} 
+                    className="patient-item"
+                  >
+                    <strong>{patient.patientName}</strong>
+                    <div className="patient-details">
+                      <span>OP No: {patient.outpatientNo}</span>
+                      <span>Reg No: {patient.regNo}</span>
+                      {patient.dob && <span>DOB: {patient.dob}</span>}
+                      {patient.gender && <span>Gender: {patient.gender}</span>}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
