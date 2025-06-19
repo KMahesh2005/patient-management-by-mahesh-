@@ -28,20 +28,20 @@ const INITIAL_FORM_DATA = {
   consultantDoctor: '',
   referenceDoctor: '',
   operatorName: auth.currentUser?.displayName || localStorage.getItem('username') || '',
-  mediaFile: null,
-  mediaUrl: null,
-  mediaPublicId: null,
-  mediaType: null, // 'image' or 'video'
+  mediaFiles: [],
+  mediaUrls: [],
+  mediaPublicIds: [],
+  mediaTypes: [],
 };
 
 const NewRegistration = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
-  const [mediaPreview, setMediaPreview] = useState(null);
+  const [mediaPreviews, setMediaPreviews] = useState([]);
   const [patients, setPatients] = useState([]);
   const [filteredPatients, setFilteredPatients] = useState([]);
   const [error, setError] = useState(null);
-  const [mode, setMode] = useState('new'); // 'new', 'edit', 'view'
+  const [mode, setMode] = useState('new');
   const [currentIndex, setCurrentIndex] = useState(-1);
   const [showPatientList, setShowPatientList] = useState(false);
   const [actionType, setActionType] = useState(null);
@@ -54,6 +54,7 @@ const NewRegistration = () => {
       const outpatientQ = query(collection(db, 'patients'), orderBy('outpatientNo', 'desc'), limit(1));
       const regNoQ = query(collection(db, 'patients'), orderBy('regNo', 'desc'), limit(1));
       const [outpatientSnapshot, regNoSnapshot] = await Promise.all([getDocs(outpatientQ), getDocs(regNoQ)]);
+      
       let highestOutpatientNo = 0;
       if (!outpatientSnapshot.empty) {
         const docData = outpatientSnapshot.docs[0].data();
@@ -61,6 +62,7 @@ const NewRegistration = () => {
           highestOutpatientNo = parseInt(docData.outpatientNo, 10);
         }
       }
+      
       let highestRegNo = 0;
       if (!regNoSnapshot.empty) {
         const docData = regNoSnapshot.docs[0].data();
@@ -68,6 +70,7 @@ const NewRegistration = () => {
           highestRegNo = parseInt(docData.regNo.replace('REG', ''), 10);
         }
       }
+      
       const newOutpatientNo = (highestOutpatientNo + 1).toString().padStart(6, '0');
       const newRegNo = `REG${(highestRegNo + 1).toString().padStart(6, '0')}`;
       return { newOutpatientNo, newRegNo };
@@ -89,25 +92,27 @@ const NewRegistration = () => {
           id: doc.id,
           ...INITIAL_FORM_DATA,
           ...docData,
-          mediaFile: null,
-          mediaType: docData.mediaType || 
-                   (docData.mediaUrl ? 
-                     (docData.mediaUrl.match(/\.(mp4|mov)$/i) ? 'video' : 'image') : null),
+          mediaFiles: [],
+          mediaUrls: docData.mediaUrls || [],
+          mediaPublicIds: docData.mediaPublicIds || [],
+          mediaTypes: docData.mediaTypes || [],
           createdAt: docData.createdAt ? new Date(docData.createdAt) : new Date(0),
         };
       });
+      
       setPatients(data);
       setFilteredPatients(data);
+      
       if (mode === 'view' && data.length > 0) {
         setFormData({ 
           ...data[data.length - 1], 
-          mediaFile: null,
-          mediaType: data[data.length - 1].mediaType || 
-                   (data[data.length - 1].mediaUrl ? 
-                     (data[data.length - 1].mediaUrl.match(/\.(mp4|mov)$/i) ? 'video' : 'image') : null)
+          mediaFiles: [],
         });
+        setMediaPreviews(data[data.length - 1].mediaUrls.map(url => ({
+          url,
+          type: url.match(/\.(mp4|mov)$/i) ? 'video' : 'image'
+        })));
         setCurrentIndex(data.length - 1);
-        setMediaPreview(data[data.length - 1].mediaUrl || null);
       } else if (data.length === 0) {
         handleReset();
       }
@@ -130,7 +135,7 @@ const NewRegistration = () => {
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
       operatorName: auth.currentUser?.displayName || localStorage.getItem('username') || '',
     });
-    setMediaPreview(null);
+    setMediaPreviews([]);
     setError(null);
     setMode('new');
     setCurrentIndex(-1);
@@ -213,112 +218,171 @@ const NewRegistration = () => {
     if (name === 'dob') {
       const calculatedAge = calculateAge(value);
       setFormData(prev => ({ ...prev, dob: value, age: calculatedAge }));
-    } else if (files) {
-      const file = files[0];
-      if (file) {
-        const validTypes = ['image/jpeg', 'image/png', 'video/mp4', 'video/quicktime'];
-        const maxSize = 50 * 1024 * 1024; // 50MB
-        
+    } else if (name === 'mediaFiles' && files) {
+      const validTypes = ['image/jpeg', 'image/png', 'video/mp4', 'video/quicktime'];
+      const maxSize = 50 * 1024 * 1024; // 50MB per file
+      
+      const newFiles = Array.from(files).filter(file => {
         if (!validTypes.includes(file.type)) {
-          toast.error('Only JPG, PNG, MP4 or MOV files allowed.', { duration: 3000 });
-          setError('Please upload an image (JPEG/PNG) or video (MP4/MOV) file.');
-          return;
+          toast.error(`File ${file.name} is not a supported type`, { duration: 3000 });
+          return false;
         }
-        
         if (file.size > maxSize) {
-          toast.error(`File size exceeds ${maxSize/1024/1024}MB limit.`, { duration: 3000 });
-          setError(`File size exceeds ${maxSize/1024/1024}MB limit.`);
-          return;
+          toast.error(`File ${file.name} exceeds size limit (50MB)`, { duration: 3000 });
+          return false;
         }
-        
-        setFormData(prev => ({ 
-          ...prev, 
-          mediaFile: file,
-          mediaType: file.type.startsWith('video') ? 'video' : 'image'
-        }));
-        setMediaPreview(URL.createObjectURL(file));
-      }
+        return true;
+      });
+
+      setFormData(prev => ({
+        ...prev,
+        mediaFiles: [...prev.mediaFiles, ...newFiles],
+      }));
+
+      // Create previews for the new files
+      const newPreviews = newFiles.map(file => ({
+        url: URL.createObjectURL(file),
+        type: file.type.startsWith('video') ? 'video' : 'image',
+        name: file.name,
+        isNew: true
+      }));
+      setMediaPreviews(prev => [...prev, ...newPreviews]);
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
     setError(null);
   };
 
-  const handleRemoveFile = () => {
-    setFormData(prev => ({ ...prev, mediaFile: null, mediaUrl: null, mediaPublicId: null, mediaType: null }));
-    setMediaPreview(null);
-    const fileInput = document.querySelector('input[name="mediaFile"]');
-    if (fileInput) fileInput.value = '';
+  const handleRemoveFile = (index) => {
+    setFormData(prev => {
+      const updatedFiles = [...prev.mediaFiles];
+      const updatedUrls = [...prev.mediaUrls];
+      const updatedPublicIds = [...prev.mediaPublicIds];
+      const updatedTypes = [...prev.mediaTypes];
+      
+      // Check if we're removing a new file or an existing one
+      const preview = mediaPreviews[index];
+      if (preview.isNew) {
+        // Remove from files array (new upload)
+        updatedFiles.splice(index - (prev.mediaUrls.length), 1);
+      } else {
+        // Remove from URLs array (existing file)
+        updatedUrls.splice(index, 1);
+        updatedPublicIds.splice(index, 1);
+        updatedTypes.splice(index, 1);
+      }
+      
+      return {
+        ...prev,
+        mediaFiles: updatedFiles,
+        mediaUrls: updatedUrls,
+        mediaPublicIds: updatedPublicIds,
+        mediaTypes: updatedTypes
+      };
+    });
+
+    // Revoke the object URL if it's a new file
+    const preview = mediaPreviews[index];
+    if (preview.isNew) {
+      URL.revokeObjectURL(preview.url);
+    }
+
+    setMediaPreviews(prev => {
+      const updated = [...prev];
+      updated.splice(index, 1);
+      return updated;
+    });
   };
 
-  const uploadToCloudinary = async (file) => {
-    const formDataToSend = new FormData();
-    formDataToSend.append('file', file);
-    formDataToSend.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-    formDataToSend.append('folder', `patient-media/${formData.outpatientNo}`);
-    try {
-      const response = await fetch(CLOUDINARY_URL, {
-        method: 'POST',
-        body: formDataToSend,
-      });
-      const result = await response.json();
-      if (result.error) throw new Error(result.error.message);
-      return { secure_url: result.secure_url, public_id: result.public_id };
-    } catch (err) {
-      console.error('Cloudinary upload error:', err);
-      toast.error('File upload failed.');
-      setError('File upload failed: ' + err.message);
-      return null;
+  const uploadToCloudinary = async (files) => {
+    const uploadResults = [];
+    
+    for (const file of files) {
+      const formDataToSend = new FormData();
+      formDataToSend.append('file', file);
+      formDataToSend.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      formDataToSend.append('folder', `patient-media/${formData.outpatientNo}`);
+      
+      try {
+        const response = await fetch(CLOUDINARY_URL, {
+          method: 'POST',
+          body: formDataToSend,
+        });
+        const result = await response.json();
+        if (result.error) throw new Error(result.error.message);
+        
+        uploadResults.push({
+          secure_url: result.secure_url,
+          public_id: result.public_id,
+          type: file.type.startsWith('video') ? 'video' : 'image'
+        });
+      } catch (err) {
+        console.error('Cloudinary upload error:', err);
+        toast.error(`Failed to upload ${file.name}`);
+        // Continue with other files even if one fails
+      }
     }
+    
+    return uploadResults;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-    if (!formData.patientName || !formData.outpatientNo || !formData.regNo || !formData.admitDate || !formData.time || !formData.dob || !formData.consultantDoctor) {
+    
+    if (!formData.patientName || !formData.outpatientNo || !formData.regNo || 
+        !formData.admitDate || !formData.time || !formData.dob || !formData.consultantDoctor) {
       toast.error('Please fill all required fields.', { duration: 3000 });
       setError('Please fill all required fields.');
       return;
     }
+    
     try {
-      let mediaUrl = formData.mediaUrl;
-      let mediaPublicId = formData.mediaPublicId;
-      let mediaType = formData.mediaType;
-      if (formData.mediaFile) {
-        const uploadResult = await uploadToCloudinary(formData.mediaFile);
-        if (!uploadResult) return;
-        mediaUrl = uploadResult.secure_url;
-        mediaPublicId = uploadResult.public_id;
-        mediaType = formData.mediaFile.type.startsWith('video') ? 'video' : 'image';
+      let mediaUrls = [...formData.mediaUrls];
+      let mediaPublicIds = [...formData.mediaPublicIds];
+      let mediaTypes = [...formData.mediaTypes];
+      
+      if (formData.mediaFiles.length > 0) {
+        const uploadResults = await uploadToCloudinary(formData.mediaFiles);
+        uploadResults.forEach(result => {
+          mediaUrls.push(result.secure_url);
+          mediaPublicIds.push(result.public_id);
+          mediaTypes.push(result.type);
+        });
       }
+
       const patientData = {
         ...formData,
-        mediaFile: null,
-        mediaUrl,
-        mediaPublicId,
-        mediaType,
-        createdAt: new Date().toISOString(),
+        mediaFiles: [], // Clear the files array
+        mediaUrls,
+        mediaPublicIds,
+        mediaTypes,
+        createdAt: mode === 'edit' ? formData.createdAt : new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         age: parseInt(formData.age) || null,
         weight: parseFloat(formData.weight) || null,
       };
+      
       if (mode === 'edit' && currentIndex >= 0) {
         const patientRef = doc(db, 'patients', patients[currentIndex].id);
         await updateDoc(patientRef, patientData);
         setPatients(prev => prev.map((p, i) => (i === currentIndex ? { id: p.id, ...patientData } : p)));
         setFilteredPatients(prev => prev.map((p, i) => (i === currentIndex ? { id: p.id, ...patientData } : p)));
         toast.success('Patient information updated successfully!', { duration: 3000 });
-        await fetchPatients();
       } else {
         const docRef = await addDoc(collection(db, 'patients'), patientData);
         setPatients(prev => [...prev, { id: docRef.id, ...patientData }]);
         setFilteredPatients(prev => [...prev, { id: docRef.id, ...patientData }]);
         toast.success('Patient registration submitted successfully!', { duration: 3000 });
       }
+      
       setMode('view');
       setCurrentIndex(patients.length);
-      setFormData({ ...patientData, mediaFile: null });
-      setMediaPreview(mediaUrl || null);
+      setFormData({ ...patientData, mediaFiles: [] });
+      setMediaPreviews(mediaUrls.map(url => ({
+        url,
+        type: url.match(/\.(mp4|mov)$/i) ? 'video' : 'image'
+      })));
     } catch (err) {
       console.error('Submit error:', err);
       toast.error('Failed to submit form: ' + err.message, { duration: 3000 });
@@ -360,11 +424,14 @@ const NewRegistration = () => {
     if (actionType === 'edit') {
       const updatedFormData = {
         ...patient,
-        mediaFile: null,
+        mediaFiles: [],
         age: patient.age ? String(patient.age) : calculateAge(patient.dob),
       };
       setFormData(updatedFormData);
-      setMediaPreview(patient.mediaUrl || null);
+      setMediaPreviews(patient.mediaUrls.map(url => ({
+        url,
+        type: url.match(/\.(mp4|mov)$/i) ? 'video' : 'image'
+      })));
       const index = patients.findIndex(p => p.id === patient.id);
       setCurrentIndex(index);
       setMode('edit');
@@ -379,8 +446,8 @@ const NewRegistration = () => {
   const handleConfirmDelete = async () => {
     if (!patientToDelete) return;
     try {
-      if (patientToDelete.mediaPublicId) {
-        console.warn('Cloudinary deletion requires backend. Public ID:', patientToDelete.mediaPublicId);
+      if (patientToDelete.mediaPublicIds && patientToDelete.mediaPublicIds.length > 0) {
+        console.warn('Cloudinary deletion requires backend. Public IDs:', patientToDelete.mediaPublicIds);
       }
       await deleteDoc(doc(db, 'patients', patientToDelete.id));
       setPatients(prev => prev.filter(p => p.id !== patientToDelete.id));
@@ -413,8 +480,11 @@ const NewRegistration = () => {
       return;
     }
     if (index >= 0 && index < patients.length) {
-      setFormData({ ...patients[index], mediaFile: null });
-      setMediaPreview(patients[index].mediaUrl || null);
+      setFormData({ ...patients[index], mediaFiles: [] });
+      setMediaPreviews(patients[index].mediaUrls.map(url => ({
+        url,
+        type: url.match(/\.(mp4|mov)$/i) ? 'video' : 'image'
+      })));
       setCurrentIndex(index);
       setMode('view');
       if (message) toast.info(message, { duration: 2000 });
@@ -431,8 +501,11 @@ const NewRegistration = () => {
       return;
     }
     const lastIndex = patients.length - 1;
-    setFormData({ ...patients[lastIndex], mediaFile: null });
-    setMediaPreview(patients[lastIndex].mediaUrl || null);
+    setFormData({ ...patients[lastIndex], mediaFiles: [] });
+    setMediaPreviews(patients[lastIndex].mediaUrls.map(url => ({
+      url,
+      type: url.match(/\.(mp4|mov)$/i) ? 'video' : 'image'
+    })));
     setCurrentIndex(lastIndex);
     setMode('view');
     toast.success(`Showing most recent patient: ${patients[lastIndex].patientName}`, { duration: 2000 });
@@ -450,8 +523,11 @@ const NewRegistration = () => {
     setMode('view');
     if (patients.length > 0) {
       const lastIndex = patients.length - 1;
-      setFormData({ ...patients[lastIndex], mediaFile: null });
-      setMediaPreview(patients[lastIndex].mediaUrl || null);
+      setFormData({ ...patients[lastIndex], mediaFiles: [] });
+      setMediaPreviews(patients[lastIndex].mediaUrls.map(url => ({
+        url,
+        type: url.match(/\.(mp4|mov)$/i) ? 'video' : 'image'
+      })));
       setCurrentIndex(lastIndex);
       toast.info('Operation cancelled. Showing most recent patient.', { duration: 2000 });
     } else {
@@ -708,38 +784,45 @@ const NewRegistration = () => {
               />
             </div>
             <div className="form-row">
-              <label htmlFor="mediaFile">Upload Image/Video:</label>
+              <label htmlFor="mediaFiles">Upload Images/Videos:</label>
               <input
                 type="file"
-                id="mediaFile"
-                name="mediaFile"
+                id="mediaFiles"
+                name="mediaFiles"
                 accept="image/jpeg,image/png,video/mp4,video/quicktime"
                 onChange={handleChange}
                 disabled={mode === 'view'}
+                multiple
               />
-              {(mediaPreview || formData.mediaUrl) && (
-                <div className="media-preview">
-                  {formData.mediaType === 'video' || (formData.mediaUrl && formData.mediaUrl.match(/\.(mp4|mov)$/i)) ? (
-                    <video controls className="preview-media">
-                      <source src={mediaPreview || formData.mediaUrl} type="video/mp4" />
-                      Your browser does not support the video tag.
-                    </video>
-                  ) : (
-                    <img
-                      src={mediaPreview || formData.mediaUrl}
-                      alt="Preview"
-                      className="preview-media"
-                    />
-                  )}
-                  {(mode === 'new' || mode === 'edit') && (
-                    <button
-                      type="button"
-                      className="clear-file-btn"
-                      onClick={handleRemoveFile}
-                    >
-                      Clear File
-                    </button>
-                  )}
+              {(mediaPreviews.length > 0) && (
+                <div className="media-previews">
+                  {mediaPreviews.map((preview, index) => (
+                    <div key={index} className="media-preview-item">
+                      {preview.type === 'video' ? (
+                        <video controls className="preview-media">
+                          <source src={preview.url} type="video/mp4" />
+                        </video>
+                      ) : (
+                        <img
+                          src={preview.url}
+                          alt={`Preview ${index}`}
+                          className="preview-media"
+                        />
+                      )}
+                      <div className="media-info">
+                        <span>{preview.name || `File ${index + 1}`}</span>
+                        {(mode === 'new' || mode === 'edit') && (
+                          <button
+                            type="button"
+                            className="clear-file-btn"
+                            onClick={() => handleRemoveFile(index)}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
