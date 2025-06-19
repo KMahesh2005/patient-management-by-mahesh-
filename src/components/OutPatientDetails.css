@@ -61,8 +61,8 @@
 
 .form-row {
   display: flex;
-  gap: 20px;
-  margin-bottom: 15px;
+  gap: 10px;
+  margin-bottom: 1px;
 }
 
 .form-group {
@@ -246,4 +246,260 @@
     flex: 1 0 auto;
     min-width: 100px;
   }
+}
+
+/* Patient List Modal Styles */
+.patient-list-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.patient-list-content {
+  background-color: #fffdfd;
+  padding: 20px;
+  border-radius: 8px;
+  width: 80%;
+  max-width: 1000px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.patient-list-search {
+  margin-bottom: 15px;
+}
+
+.patient-list-search input {
+  width: 100%;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #444;
+  background-color: #ffffff;
+  color: rgb(96, 18, 18);
+}
+
+.patient-list-table-container {
+  overflow-y: auto;
+  flex-grow: 1;
+  margin-bottom: 15px;
+}
+
+.patient-list-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.patient-list-table th,
+.patient-list-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid #193fbb;
+}
+
+.patient-list-table th {
+  background-color: #ffffff;
+  position: sticky;
+  top: 0;
+}
+
+.patient-list-table tr:hover {
+  background-color: #2a2a2a;
+}
+
+.patient-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.patient-actions button {
+  padding: 4px 8px;
+  font-size: 12px;
+  background-color: #1945be;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.patient-actions button:hover {
+  background-color: #fffefe;
+}
+
+.no-patients {
+  text-align: center;
+  padding: 20px;
+  color: #888;
+}
+
+.patient-list-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.patient-list-actions button {
+  padding: 8px 16px;
+  background-color: #b61c1c;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.patient-list-actions button:hover {
+  background-color: #2e69de;
+}
+
+.sidebar-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 120px;
+  padding: 10px;
+  background-color: #fffafa;
+  border-radius: 8px;
+  margin-left: 10px;
+}
+
+.sidebar-buttons button {
+  padding: 10px;
+  border: none;
+  border-radius: 4px;
+  background-color: #3a3a3a;
+  color: white;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-buttons button:hover {
+  background-color: #4a4a4a;
+}
+
+.sidebar-buttons button:disabled {
+  background-color: #2a2a2a;
+  color: #666;
+  cursor: not-allowed;
+}
+
+/* Color Options - choose one set */
+
+/* Blue Theme */
+.patient-list-table tr:hover {
+  background-color: #4884de; /* dark blue */
+}
+.patient-list-table tr:active, 
+.patient-list-table tr.active-row {
+  background-color: #419bee; /* darker blue */
+}
+
+/* Green Theme */
+.patient-list-table tr:hover {
+  background-color: #de6262; /* dark green */
+}
+.patient-list-table tr:active, 
+.patient-list-table tr.active-row {
+  background-color: #ffffff; /* darker green */
+}
+
+/* Purple Theme */
+/*.patient-list-table tr:hover {
+  background-color: #ffffff; /* dark purple 
+}
+.patient-list-table tr:active, 
+.patient-list-table tr.active-row {
+  background-color: #ffffff; /* darker purple 
+} */
+
+/* Customize the action buttons to match */
+ /* use same as row hover */
+
+.patient-actions button:active {
+  background-color: var(--active-color); /* use same as row active */
+}
+/* Add these styles to your existing OutPatientDetails.css */
+
+/* History Modal Styles */
+.history-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.history-content {
+  background: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  width: 80%;
+  max-width: 900px;
+  max-height: 80vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+}
+
+.history-content h3 {
+  margin-top: 0;
+  color: #333;
+  text-align: left;
+}
+
+.history-list {
+  margin-top: 10px;
+}
+
+.history-item {
+  border: 1px solid #ddd;
+  padding: 10px 15px;
+  margin-bottom: 15px;
+  border-radius: 5px;
+}
+
+.history-item h4 {
+  margin: 0 0 5px 0;
+  color: #2c3e50;
+}
+
+.history-details p {
+  margin: 5px 0;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.history-media {
+  margin-top: 10px;
+}
+
+.history-media .media-previews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.history-media .media-preview-item {
+  width: 150px;
+}
+
+.history-media .preview-media {
+  width: 100%;
+  height: auto;
+  max-height: 100px;
+  object-fit: cover;
+  border-radius: 5px;
 }
