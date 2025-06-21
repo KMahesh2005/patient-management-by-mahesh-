@@ -24,9 +24,3 @@ steps:
     npm install
     npm run build
   displayName: 'Install and build'
-- task: Npm@1
-  inputs:
-    command: 'publish'
-    workingDir: './'
-    customRegistry: 'useFeed'
-    customFeed: '97e7ec50-7821-4ed6-8f4f-eb6a5640670e/e467119a-9775-4df5-97f0-5ee02cd441ed'
